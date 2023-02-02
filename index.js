@@ -40,11 +40,40 @@ app.use(async (req, res, next) => {
 
 // POST /register
 // OPTIONAL - takes req.body of {username, password} and creates a new user with the hashed password
-
+app.post('/register', async (req, res, next) => {
+  // try {
+  const { username, password } = req.body;
+  const hashedPw = await bcrypt.hash(password, 10);
+  let user = await User.create({ username, password: hashedPw });
+  const token = jwt.sign(user.username, process.env.JWT_SECRET);
+  res.send({ message: 'success', token: token });
+  // } catch (error) {
+  //   console.log(error);
+  //   next(error);
+  // }
+});
 
 // POST /login
 // OPTIONAL - takes req.body of {username, password}, finds user by username, and compares the password with the hashed version from the DB
-
+app.post('/login', async (req, res, next) => {
+  // try {
+  const { username, password } = req.body;
+  const [foundUser] = await User.findAll({ where: { username } });
+  if (!foundUser) {
+    res.send(401);
+  }
+  const isMatch = await bcrypt.compare(password, foundUser.password);
+  if (!isMatch) {
+    res.status(401).send("Unauthorized")
+  } else {
+    const token = jwt.sign(username, process.env.JWT_SECRET);
+    res.status(200).send({ message: 'success', token: token });
+  }
+  // } catch (error) {
+  //   console.log(error);
+  //   next(error);
+  // }
+});
 // GET /kittens/:id
 // TODO - takes an id and returns the cat with that id
 app.get('/kittens/:id', async (req, res, next) => {
@@ -54,19 +83,19 @@ app.get('/kittens/:id', async (req, res, next) => {
   } else if (req.user.id !== kitten.ownerId) {
     res.send(401);
   } else {
-    res.send({name: kitten.name, color: kitten.color, age: kitten.age});
+    res.send({ name: kitten.name, color: kitten.color, age: kitten.age });
   }
 })
 
 // POST /kittens
 // TODO - takes req.body of {name, age, color} and creates a new cat with the given name, age, and color
 app.post('/kittens/', async (req, res, next) => {
-   if (!req.user) {
+  if (!req.user) {
     res.send(401);
   } else {
-    const {name, color, age} = req.body;
-    const kitten = await Kitten.create({ownerId: req.user.id, name, color, age});
-    res.status(201).send({name: kitten.name, age: kitten.age, color: kitten.color});
+    const { name, color, age } = req.body;
+    const kitten = await Kitten.create({ ownerId: req.user.id, name, color, age });
+    res.status(201).send({ name: kitten.name, age: kitten.age, color: kitten.color });
   }
 })
 
